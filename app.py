@@ -1,95 +1,55 @@
 import streamlit as st
 import re
 
-# Настройка страницы "под телефон"
-st.set_page_config(page_title="Auto Hunter AI", page_icon="🚗")
+# 1. Настройка страницы (Чистый русский интерфейс)
+st.set_page_config(page_title="Авто Хантер AI", page_icon="🎯")
 
-# --- 1. ЗАЩИТА (ТВОЙ ПАРОЛЬ) ---
-password = st.sidebar.text_input("Введи ключ доступа:", type="password")
+# 2. Защита паролем
+password = st.sidebar.text_input("Пароль доступа:", type="password")
 if password != "MINSK2026":
-    st.warning("🔒 Введите пароль в боковой панели, чтобы разблокировать утилиту.")
+    st.warning("⚠️ Введите пароль в боковой панели для работы с системой.")
     st.stop()
 
-st.title("🚗 Auto Hunter: Перехват")
-st.write("Вставь текст — я найду контакты и сделаю их кликабельными.")
+# 3. Основной интерфейс
+st.title("🎯 Авто Хантер: СНГ")
+st.write("Универсальный поиск контактов для всех стран СНГ. Находит телефоны, почты и ссылки.")
 
-# --- 2. ВВОД ДАННЫХ ---
-raw_text = st.text_area("👇 Вставь данные (Kufar / чаты / сайты):", height=250)
+# 4. Поле ввода
+raw_text = st.text_area("Вставьте ваш текст сюда:", height=250, placeholder="Текст из чатов, сайтов или базы данных...")
 
-if st.button("🚀 НАЙТИ ТЕЛЕФОНЫ И ССЫЛКИ"):
+# 5. Обработка данных
+if st.button("🚀 Найти все контакты"):
     if raw_text:
-        # Регулярки: ищем ссылки, почты и БЕЛОРУССКИЕ ТЕЛЕФОНЫ
+        # Улучшенная регулярка: ищет номера от 7 до 15 цифр, начинающиеся с + или цифр (РФ, РБ, КЗ, УЗ и др.)
+        phones = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_text)))
         emails = list(set(re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', raw_text)))
-        urls = list(set(re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', raw_text)))
-        phones = list(set(re.findall(r'\+?375\s?\(?\d{2}\)?\s?\d{3}-?\d{2}-?\d{2}', raw_text)))
+        urls = list(set(re.findall(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', raw_text)))
 
         st.divider()
 
-        # --- 3. ВЫВОД РЕЗУЛЬТАТОВ (ТВОЯ ФИЧА "ПОЗВОНИТЬ") ---
+        # Результаты: Телефоны
         if phones:
-            st.subheader(f"📞 Найдено телефонов: {len(phones)}")
+            st.subheader(f"📞 Контактные номера ({len(phones)})")
             for p in phones:
-                # Очищаем номер от лишних знаков для звонка
-                clean_phone = re.sub(r'[^0-9+]', '', p)
-                # Кнопка, которая открывает "дозвон" в телефоне
-                st.link_button(f"📞 ПОЗВОНИТЬ {p}", f"tel:{clean_phone}")
+                # Очищаем номер для клика (оставляем только + и цифры)
+                clean_p = re.sub(r'[^\d+]', '', p)
+                if not clean_p.startswith('+') and len(clean_p) > 10:
+                    clean_p = '+' + clean_p
+                st.link_button(f"📞 Позвонить {p}", f"tel:{clean_p}")
         
-        if urls:
-            st.subheader(f"🔗 Ссылки: {len(urls)}")
-            for u in urls:
-                st.write(u)
-                
-        if not phones and not urls:
-            st.info("Ничего ценного не найдено. Попробуй другой текст.")
+        # Почты и Ссылки
+        if emails or urls:
+            col1, col2 = st.columns(2)
+            with col1:
+                if emails:
+                    st.subheader("📧 Почты:")
+                    for e in emails: st.info(e)
+            with col2:
+                if urls:
+                    st.subheader("🔗 Ссылки:")
+                    for u in urls: st.link_button("Открыть ссылку", u)
+
+        if not phones and not emails and not urls:
+            st.warning("Контакты не обнаружены. Попробуйте вставить другой текст.")
     else:
-        st.error("Поле пустое!")
-
-st.sidebar.markdown("---")
-st.sidebar.caption("v1.2 | Автор: ARV-04")import streamlit as st
-import re
-
-# Настройка страницы "под телефон"
-st.set_page_config(page_title="Auto Hunter AI", page_icon="🚗")
-
-# --- 1. ЗАЩИТА (ТВОЙ ПАРОЛЬ) ---
-password = st.sidebar.text_input("Введи ключ доступа:", type="password")
-if password != "MINSK2026":
-    st.warning("🔒 Введите пароль в боковой панели, чтобы разблокировать утилиту.")
-    st.stop()
-
-st.title("🚗 Auto Hunter: Перехват")
-st.write("Вставь текст — я найду контакты и сделаю их кликабельными.")
-
-# --- 2. ВВОД ДАННЫХ ---
-raw_text = st.text_area("👇 Вставь данные (Kufar / чаты / сайты):", height=250)
-
-if st.button("🚀 НАЙТИ ТЕЛЕФОНЫ И ССЫЛКИ"):
-    if raw_text:
-        # Регулярки: ищем ссылки, почты и БЕЛОРУССКИЕ ТЕЛЕФОНЫ
-        emails = list(set(re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', raw_text)))
-        urls = list(set(re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', raw_text)))
-        phones = list(set(re.findall(r'\+?375\s?\(?\d{2}\)?\s?\d{3}-?\d{2}-?\d{2}', raw_text)))
-
-        st.divider()
-
-        # --- 3. ВЫВОД РЕЗУЛЬТАТОВ (ТВОЯ ФИЧА "ПОЗВОНИТЬ") ---
-        if phones:
-            st.subheader(f"📞 Найдено телефонов: {len(phones)}")
-            for p in phones:
-                # Очищаем номер от лишних знаков для звонка
-                clean_phone = re.sub(r'[^0-9+]', '', p)
-                # Кнопка, которая открывает "дозвон" в телефоне
-                st.link_button(f"📞 ПОЗВОНИТЬ {p}", f"tel:{clean_phone}")
-        
-        if urls:
-            st.subheader(f"🔗 Ссылки: {len(urls)}")
-            for u in urls:
-                st.write(u)
-                
-        if not phones and not urls:
-            st.info("Ничего ценного не найдено. Попробуй другой текст.")
-    else:
-        st.error("Поле пустое!")
-
-st.sidebar.markdown("---")
-st.sidebar.caption("v1.2 | Автор: ARV-04")
+        st.error("Ошибка: Поле ввода пустое!")
