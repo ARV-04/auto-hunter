@@ -1,40 +1,48 @@
 import streamlit as st
 import re
+import pandas as pd
 
-# Настройка страницы
-st.set_page_config(page_title="Хантер", layout="centered")
+# Настройка Агрегатора
+st.set_page_config(page_title="Хантер: Агрегатор", layout="wide")
 
-# Главный заголовок
-st.title("🎯 ХАНТЕР: КОНТАКТЫ")
-st.write("Вставьте текст — я вытащу номера и ссылки.")
+st.title("🎯 АВТО-ХАНТЕР: СБОР БАЗЫ")
+st.write("Сбор и выгрузка запросов по запчастям для монетизации.")
 
-# Поле ввода
-raw_text = st.text_area("СЮДА КИДАЙ ТЕКСТ:", height=300)
+# Поле для ввода кучи текста из чатов
+raw_text = st.text_area("ВСТАВЬ ТЕКСТ ИЗ ЧАТОВ (Viber, TG, Сайты):", height=250)
 
-# Кнопка поиска
-if st.button("🚀 НАЙТИ ВСЕ КОНТАКТЫ"):
+if st.button("🚀 ОБРАБОТАТЬ И ВНЕСТИ В БАЗУ"):
     if raw_text:
-        # Умный поиск телефонов (РФ, РБ, СНГ)
+        # Ищем телефоны (РФ, РБ, СНГ)
         phones = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_text)))
-        links = list(set(re.findall(r'https?://\S+', raw_text)))
-
-        st.divider()
-
+        
         if phones:
-            st.subheader(f"✅ Найдено номеров: {len(phones)}")
+            st.success(f"✅ Найдено новых контактов: {len(phones)}")
+            
+            # Создаем Библиотеку (Таблицу)
+            df = pd.DataFrame(phones, columns=["Контакт"])
+            
+            # Вывод таблицы на экран (твоя витрина)
+            st.subheader("📊 ТВОЯ ТЕКУЩАЯ БАЗА ЗАПЧАСТЕЙ:")
+            st.table(df)
+            
+            # Кнопка СКАЧАТЬ (то, что ты будешь продавать сервисам)
+            csv = df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 СКАЧАТЬ БАЗУ В EXCEL (ДЛЯ ПАРТНЕРОВ)",
+                data=csv,
+                file_name='hunter_base_export.csv',
+                mime='text/csv',
+            )
+            
+            st.divider()
+            # Кнопки для быстрого обзвона
             for p in phones:
                 clean_p = re.sub(r'[^\d+]', '', p)
-                if not clean_p.startswith('+') and len(clean_p) > 10:
-                    clean_p = '+' + clean_p
-                # Кнопка на весь экран для телефона
                 st.link_button(f"📞 ПОЗВОНИТЬ {p}", f"tel:{clean_p}")
-        
-        if links:
-            st.subheader("🔗 Ссылки:")
-            for l in links:
-                st.link_button("ОТКРЫТЬ ССЫЛКУ", l)
-
-        if not phones and not links:
-            st.warning("Ничего не найдено. Попробуйте другой текст.")
+        else:
+            st.warning("Номера не найдены.")
     else:
         st.error("Поле пустое!")
+
+st.caption("Бизнес-платформа: ARV-04 | Режим Агрегатора Активен")
