@@ -1,49 +1,72 @@
 import streamlit as st
 import re
 import pandas as pd
+from datetime import datetime
 
-# 1. Настройка: Только самое важное
-st.set_page_config(page_title="Хантер", layout="wide")
+# 1. Настройка: Широкий экран и русский заголовок
+st.set_page_config(page_title="Авто-Хантер: Помощник", layout="wide")
 
-st.title("🎯 ХАНТЕР: ПУЛЬТ УПРАВЛЕНИЯ")
+# Инициализация Библиотеки (памяти)
+if 'db' not in st.session_state:
+    st.session_state.db = []
 
-# 2. ДВЕ КНОПКИ ДЛЯ КЛИЕНТА (СЛЕЖКА)
-col_cfg1, col_cfg2 = st.columns(2)
-with col_cfg1:
-    enable_hunt = st.checkbox("🔔 ВКЛЮЧИТЬ СЛЕЖКУ ЗА ДЕТАЛЬЮ", value=False)
-with col_cfg2:
-    target_part = st.text_input("ЧТО ИЩЕМ?", value="КПП", label_visibility="collapsed")
+st.title("🎯 ВАШ АВТО-ПОМОЩНИК")
 
-st.divider()
+# 2. БЛОК УПРАВЛЕНИЯ (ДЛЯ ГЕНЕРАЛЬНОГО)
+with st.expander("⚙️ НАСТРОЙКА СЛЕЖКИ И УВЕДОМЛЕНИЙ"):
+    enable_alert = st.checkbox("🔔 ВКЛЮЧИТЬ ОПОВЕЩЕНИЕ ПРИ НАХОДКЕ", value=False)
+    watch_word = st.text_input("Какую деталь или марку ловим?", value="КПП")
 
-# 3. ГЛАВНОЕ ОКНО ДЛЯ ТЕКСТА
-raw_text = st.text_area("ВСТАВЬТЕ ТЕКСТ ИЗ ЧАТОВ СЮДА:", height=250, placeholder="Скопируйте переписку...")
+# 3. ПОЛЕ ДЛЯ НОВЫХ ПОСТУПЛЕНИЙ (СЮДА КИДАЕМ ТЕКСТ)
+raw_input = st.text_area("📥 ВСТАВЬТЕ ТЕКСТ ИЗ ЧАТОВ (VIBER, TG, САЙТЫ):", height=150)
 
-if st.button("🚀 НАЧАТЬ ПОИСК"):
-    if raw_text:
-        # Ищем номера
-        phones = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_text)))
+if st.button("🚀 ОБРАБОТАТЬ И ВНЕСТИ В БАЗУ"):
+    if raw_input:
+        # Ищем телефоны
+        new_phones = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_input)))
         
-        if phones:
-            # СРАБОТКА УВЕДОМЛЕНИЯ
-            if enable_hunt and target_part.lower() in raw_text.lower():
-                st.error(f"🚨 ЕСТЬ СОВПАДЕНИЕ! НАЙДЕНА ДЕТАЛЬ: {target_part}")
-                # Звуковой сигнал
-                st.markdown('<audio autoplay><source src="https://www.soundjay.com"></audio>', unsafe_allow_code=True)
+        if new_phones:
+            # Сработка уведомления
+            if enable_alert and watch_word.lower() in raw_input.lower():
+                st.error(f"🚨 ЕСТЬ ЗАКАЗ! Найдена деталь: {watch_word}")
                 st.balloons()
-
-            st.subheader(f"✅ Найдено контактов: {len(phones)}")
             
-            # ВЫВОД КНОПОК ПОД ПАЛЕЦ
-            for p in phones:
-                clean_p = re.sub(r'[^\d+]', '', p)
-                if not clean_p.startswith('+') and len(clean_p) > 10:
-                    clean_p = '+' + clean_p
-                # Жирная кнопка вызова
-                st.link_button(f"📞 ПОЗВОНИТЬ {p}", f"tel:{clean_p}", use_container_width=True)
-        else:
-            st.warning("Номера не найдены.")
+            # Наполняем Библиотеку
+            for p in new_phones:
+                st.session_state.db.append({
+                    "Время": datetime.now().strftime("%H:%M"),
+                    "Контакт": p,
+                    "Деталь": watch_word if enable_alert else "Общий поиск"
+                })
+            st.success(f"Добавлено {len(new_phones)} новых контактов в базу!")
     else:
         st.error("Поле пустое!")
 
-st.caption("Лицензионный доступ: ARV-04 | Сервис активен")
+st.divider()
+
+# 4. ТВОЯ БИБЛИОТЕКА (ТОТ САМЫЙ СКЛАД)
+st.subheader("📚 ВАША БИБЛИОТЕКА ЗАПЧАСТЕЙ")
+
+if st.session_state.db:
+    df = pd.DataFrame(st.session_state.db).drop_duplicates(subset=['Контакт'])
+    
+    # Поиск по библиотеке (чтобы вытащить то, что нужно)
+    search_q = st.text_input("🔍 Поиск по накопленной базе (введите номер или деталь):")
+    if search_q:
+        df = df[df['Контакт'].str.contains(search_q) | df['Деталь'].str.contains(search_q, case=False)]
+
+    st.table(df.tail(10)) # Показываем последние 10 записей
+    
+    # Кнопка СКАЧАТЬ (Монетизация)
+    csv = df.to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📥 СКАЧАТЬ ВЕСЬ СКЛАД (EXCEL)", csv, "auto_base.csv", "text/csv")
+
+    st.divider()
+    # Кнопки для быстрого обзвона из последних находок
+    for index, row in df.tail(5).iterrows():
+        clean_p = re.sub(r'[^\d+]', '', row['Контакт'])
+        st.link_button(f"📞 ПОЗВОНИТЬ {row['Контакт']} ({row['Деталь']})", f"tel:{clean_p}", use_container_width=True)
+else:
+    st.info("Библиотека пока пуста. Закиньте первый текст выше.")
+
+st.caption("Бизнес-платформа: ARV-04 | Система активна")
