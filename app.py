@@ -2,54 +2,64 @@ import streamlit as st
 import re
 import pandas as pd
 
-# Настройка Агрегатора (Широкий экран)
-st.set_page_config(page_title="Хантер: База", layout="wide")
+# 1. Настройка: Чистый экран, ничего лишнего
+st.set_page_config(page_title="Хантер: Сервис", layout="wide")
 
-st.title("🎯 АВТО-ХАНТЕР: БАЗА И ЗВОНКИ")
+# Скрываем технический мусор Streamlit (меню, футеры)
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stButton>button {
+        width: 100%; border-radius: 10px; height: 3.5em; 
+        background-color: #ff4b4b; color: white; font-weight: bold; font-size: 20px;
+    }
+    </style>
+    """, unsafe_allow_code=True)
 
-# Блок настройки уведомлений (твое пожелание)
-with st.expander("🔔 НАСТРОЙКА УВЕДОМЛЕНИЙ (ОБНОВЛЕНИЕ)"):
-    target_part = st.text_input("Какую запчасть отслеживаем?", placeholder="Например: КПП или Бампер")
-    st.info("Система подсветит запросы, если найдет это слово в тексте.")
+# Функция звука (сигнал клиенту)
+def play_alert():
+    st.markdown('<audio autoplay><source src="https://www.soundjay.com"></audio>', unsafe_allow_code=True)
 
-# Поле для сырого текста
-raw_text = st.text_area("ВСТАВЬ ТЕКСТ ИЗ ЧАТОВ СЮДА:", height=200)
+st.title("🎯 ХАНТЕР: ПУЛЬТ УПРАВЛЕНИЯ")
 
-if st.button("🚀 ОБРАБОТАТЬ И ВНЕСТИ В БАЗУ"):
+# БЛОК ДЛЯ КЛИЕНТА (ВСЕГО ДВЕ НАСТРОЙКИ)
+col_cfg1, col_cfg2 = st.columns(2)
+with col_cfg1:
+    enable_hunt = st.checkbox("🔔 ВКЛЮЧИТЬ СЛЕЖКУ ЗА ДЕТАЛЬЮ", value=False)
+with col_cfg2:
+    target_part = st.text_input("ЧТО ИЩЕМ?", value="КПП", label_visibility="collapsed")
+
+st.divider()
+
+# ГЛАВНОЕ ОКНО
+raw_text = st.text_area("ВСТАВЬТЕ ТЕКСТ ИЗ ЧАТОВ СЮДА:", height=250, placeholder="Скопируйте сюда переписку из Viber или Telegram...")
+
+if st.button("🚀 НАЧАТЬ ПОИСК"):
     if raw_text:
-        # Ищем телефоны (РФ, РБ, СНГ)
+        # Поиск номеров
         phones = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_text)))
         
         if phones:
-            st.success(f"✅ Найдено контактов: {len(phones)}")
-            
-            # Если есть ключевое слово — проверяем его
-            if target_part and target_part.lower() in raw_text.lower():
-                st.warning(f"🎯 ВНИМАНИЕ! Найдено совпадение по запчасти: {target_part}")
+            # СРАБОТКА (ЕСЛИ ВКЛЮЧЕНА СЛЕЖКА)
+            if enable_hunt and target_part.lower() in raw_text.lower():
+                st.error(f"🚨 ЕСТЬ СОВПАДЕНИЕ! НАЙДЕНА ДЕТАЛЬ: {target_part}")
+                play_alert()
+                st.balloons()
 
-            # Создаем таблицу (Библиотеку)
-            df = pd.DataFrame(phones, columns=["Контакт"])
-            st.table(df) # Визуальная таблица
+            st.subheader(f"✅ Найдено контактов: {len(phones)}")
             
-            # Кнопка СКАЧАТЬ В EXCEL (твоя монетизация)
-            csv = df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button("📥 СКАЧАТЬ ВСЮ БАЗУ (EXCEL)", csv, "auto_base.csv", "text/csv")
-            
-            st.divider()
-            
-            # ГЛАВНОЕ: Кнопки для моментального звонка
-            st.subheader("📲 БЫСТРЫЙ ОБЗВОН (БЕЗ ВВОДА НОМЕРА):")
+            # ВЫВОД КНОПОК ПОД ПАЛЕЦ
             for p in phones:
-                # Чистим номер для системы звонка
                 clean_p = re.sub(r'[^\d+]', '', p)
                 if not clean_p.startswith('+') and len(clean_p) > 10:
                     clean_p = '+' + clean_p
-                
-                # Кнопка звонка (нажал — позвонил)
-                st.link_button(f"📞 ПОЗВОНИТЬ: {p}", f"tel:{clean_p}", use_container_width=True)
+                # Огромная кнопка вызова
+                st.link_button(f"📞 ПОЗВОНИТЬ {p}", f"tel:{clean_p}")
         else:
             st.warning("В этом тексте номеров не найдено.")
     else:
-        st.error("Пусто! Закинь данные из Viber/Telegram.")
+        st.error("Поле пустое! Вставьте данные для поиска.")
 
-st.caption("Система: ARV-04 | Генеральный директор | Звонки активны")
+st.caption("Лицензионный доступ: ARV-04 | Сервис активен")
