@@ -3,70 +3,77 @@ import re
 import pandas as pd
 from datetime import datetime
 
-# 1. Настройка: Широкий экран и русский заголовок
-st.set_page_config(page_title="Авто-Хантер: Помощник", layout="wide")
+# Настройка: Чистый и мощный терминал
+st.set_page_config(page_title="АВТО-УЗЕЛ", layout="wide")
 
-# Инициализация Библиотеки (памяти)
-if 'db' not in st.session_state:
-    st.session_state.db = []
+# Единая библиотека встреч (База данных)
+if 'hub_db' not in st.session_state:
+    st.session_state.hub_db = []
 
-st.title("🎯 ВАШ АВТО-ПОМОЩНИК")
+st.title("🎯 АВТО-ХАНТЕР: МЕСТО ВСТРЕЧИ")
+st.write("Соединяем тех, кто ищет, с теми, у кого есть. Без посредников в товаре.")
 
-# 2. БЛОК УПРАВЛЕНИЯ (ДЛЯ ГЕНЕРАЛЬНОГО)
-with st.expander("⚙️ НАСТРОЙКА СЛЕЖКИ И УВЕДОМЛЕНИЙ"):
-    enable_alert = st.checkbox("🔔 ВКЛЮЧИТЬ ОПОВЕЩЕНИЕ ПРИ НАХОДКЕ", value=False)
-    watch_word = st.text_input("Какую деталь или марку ловим?", value="КПП")
-
-# 3. ПОЛЕ ДЛЯ НОВЫХ ПОСТУПЛЕНИЙ (СЮДА КИДАЕМ ТЕКСТ)
-raw_input = st.text_area("📥 ВСТАВЬТЕ ТЕКСТ ИЗ ЧАТОВ (VIBER, TG, САЙТЫ):", height=150)
-
-if st.button("🚀 ОБРАБОТАТЬ И ВНЕСТИ В БАЗУ"):
-    if raw_input:
-        # Ищем телефоны
-        new_phones = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_input)))
-        
-        if new_phones:
-            # Сработка уведомления
-            if enable_alert and watch_word.lower() in raw_input.lower():
-                st.error(f"🚨 ЕСТЬ ЗАКАЗ! Найдена деталь: {watch_word}")
-                st.balloons()
-            
-            # Наполняем Библиотеку
-            for p in new_phones:
-                st.session_state.db.append({
-                    "Время": datetime.now().strftime("%H:%M"),
-                    "Контакт": p,
-                    "Деталь": watch_word if enable_alert else "Общий поиск"
-                })
-            st.success(f"Добавлено {len(new_phones)} новых контактов в базу!")
-    else:
-        st.error("Поле пустое!")
+# --- БЛОК 1: КТО ИЩЕТ (СПРОС) ---
+with st.expander("🔍 Я ИЩУ ЗАПЧАСТЬ (ЗАЯВКА)"):
+    c1, c2 = st.columns(2)
+    with c1:
+        part_needed = st.text_input("Марка и Деталь:", placeholder="Например: BMW E60 Бампер")
+    with c2:
+        buyer_tel = st.text_input("Ваш контакт:", placeholder="+375...")
+    
+    if st.button("📢 ОПУБЛИКОВАТЬ ЗАПРОС"):
+        if part_needed and buyer_tel:
+            st.session_state.hub_db.append({
+                "Дата": datetime.now().strftime("%H:%M"),
+                "Статус": "ИЩУТ", "Объект": part_needed.upper(), "Контакт": buyer_tel
+            })
+            st.success("Запрос в эфире!")
 
 st.divider()
 
-# 4. ТВОЯ БИБЛИОТЕКА (ТОТ САМЫЙ СКЛАД)
-st.subheader("📚 ВАША БИБЛИОТЕКА ЗАПЧАСТЕЙ")
+# --- БЛОК 2: КТО ПРОДАЕТ (ПРЕДЛОЖЕНИЕ - ИЗ ЧАТОВ И НАПРЯМУЮ) ---
+with st.expander("🚚 У МЕНЯ ЕСТЬ ЗАПЧАСТИ (ПРЕДЛОЖЕНИЕ / ЧАТЫ)"):
+    raw_input = st.text_area("Вставьте текст из чата или ваше предложение:", height=150)
+    if st.button("🚀 ДОБАВИТЬ В ЭФИР"):
+        # Вытаскиваем номера телефонов
+        found_tels = list(set(re.findall(r'(?:\+|\b)(?:\d[\s\-]?){10,14}\d', raw_input)))
+        if found_tels:
+            for t in found_tels:
+                st.session_state.hub_db.append({
+                    "Дата": datetime.now().strftime("%H:%M"),
+                    "Статус": "ПРОДАЮТ", "Объект": "Запчасти (см. контакт)", "Контакт": t
+                })
+            st.success(f"Добавлено {len(found_tels)} предложений!")
+        else:
+            st.warning("Контакты не найдены.")
 
-if st.session_state.db:
-    df = pd.DataFrame(st.session_state.db).drop_duplicates(subset=['Контакт'])
-    
-    # Поиск по библиотеке (чтобы вытащить то, что нужно)
-    search_q = st.text_input("🔍 Поиск по накопленной базе (введите номер или деталь):")
-    if search_q:
-        df = df[df['Контакт'].str.contains(search_q) | df['Деталь'].str.contains(search_q, case=False)]
+st.divider()
 
-    st.table(df.tail(10)) # Показываем последние 10 записей
+# --- БЛОК 3: БИБЛИОТЕКА ВСТРЕЧ (ТВОЙ РЫНОК) ---
+st.subheader("📚 ЖИВОЙ ЭФИР РЫНКА")
+
+if st.session_state.hub_db:
+    df = pd.DataFrame(st.session_state.hub_db).drop_duplicates(subset=['Контакт', 'Объект'])
     
-    # Кнопка СКАЧАТЬ (Монетизация)
+    # ФИЛЬТР ДЛЯ СТЫКОВКИ
+    search_match = st.text_input("🔍 НАЙТИ ПАРУ (введите название детали):")
+    if search_match:
+        df = df[df['Объект'].str.contains(search_match, case=False)]
+
+    st.table(df.tail(20)) # Твоя витрина встреч
+    
+    # Кнопка СКАЧАТЬ ВЕСЬ ЭФИР (Excel)
     csv = df.to_csv(index=False).encode('utf-8-sig')
-    st.download_button("📥 СКАЧАТЬ ВЕСЬ СКЛАД (EXCEL)", csv, "auto_base.csv", "text/csv")
-
+    st.download_button("📥 СКАЧАТЬ БАЗУ ДЛЯ ОБЗВОНА (EXCEL)", csv, "auto_hub.csv", "text/csv")
+    
     st.divider()
-    # Кнопки для быстрого обзвона из последних находок
+    # БЫСТРЫЙ ВЫЗОВ (Клик — и они встретились!)
+    st.subheader("📲 СВЯЗАТЬ УЧАСТНИКОВ:")
     for index, row in df.tail(5).iterrows():
         clean_p = re.sub(r'[^\d+]', '', row['Контакт'])
-        st.link_button(f"📞 ПОЗВОНИТЬ {row['Контакт']} ({row['Деталь']})", f"tel:{clean_p}", use_container_width=True)
+        btn_label = f"📞 {row['Статус']}: {row['Объект']} — {row['Контакт']}"
+        st.link_button(btn_label, f"tel:{clean_p}", use_container_width=True)
 else:
-    st.info("Библиотека пока пуста. Закиньте первый текст выше.")
+    st.info("В эфире пока тишина. Начните наполнение!")
 
-st.caption("Бизнес-платформа: ARV-04 | Система активна")
+st.caption("Платформа: ARV-04 | Место встречи продавцов и покупателей")
